@@ -1,0 +1,161 @@
+---
+- name: Preparar ambiente
+  hosts: localhost
+  connection: local
+  become: yes
+
+  tasks:
+    - name: Instalar Git
+      package:
+        name: git
+        state: present
+
+    - name: Instalar Flatpak
+      package:
+        name: flatpak
+        state: present
+
+    - name: Instalar Snapd (Snap)
+      package:
+        name: snapd
+        state: present
+
+    - name: Baixar Postman
+      get_url:
+        url: https://dl.pstmn.io/download/latest/linux64
+        dest: /tmp/postman-linux64.tar.gz
+        mode: 0755
+
+    - name: Descompactar Postman
+      unarchive:
+        src: /tmp/postman-linux64.tar.gz
+        dest: /opt
+        remote_src: yes
+        creates: /opt/Postman
+
+    - name: Criar link simbólico para o Postman executável
+      file:
+        src: /opt/Postman/Postman
+        dest: /usr/local/bin/postman
+        state: link
+
+    - name: Adicionar chave GPG do repositório do VSCode
+      apt_key:
+        url: https://packages.microsoft.com/keys/microsoft.asc
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Adicionar repositório do VSCode (Ubuntu)
+      apt_repository:
+        repo: deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main
+        state: present
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Instalar Visual Studio Code (VSCode) no Ubuntu
+      apt:
+        name: code
+        state: present
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Adicionar chave GPG do repositório do Microsoft Teams
+      become: yes
+      command: >
+        sudo wget -qO /etc/apt/keyrings/teams-for-linux.asc
+        https://repo.teamsforlinux.de/teams-for-linux.asc
+
+    - name: Adicionar repositório do Microsoft Teams
+      become: yes
+      command: >
+        echo "deb [signed-by=/etc/apt/keyrings/teams-for-linux.asc arch=$(dpkg --print-architecture)] https://repo.teamsforlinux.de/debian/ stable main" | sudo tee /etc/apt/sources.list.d/teams-for-linux-packages.list
+
+    - name: Atualizar lista de pacotes
+      become: yes
+      apt:
+        update_cache: yes
+
+    - name: Instalar Microsoft Teams
+      become: yes
+      apt:
+        name: teams-for-linux
+        state: present
+
+    - name: Instalar IntelliJ IDEA Community Edition via Snap
+      ansible.builtin.command: sudo snap install intellij-idea-community --classic
+      become: yes
+      become_user: root
+
+    - name: Instalar OpenFortiVPN
+      apt:
+        name: openfortivpn
+        state: present
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Atualizar sistema
+      apt:
+        upgrade: dist
+        update_cache: yes
+      become: yes
+
+    - name: Verificar se libssl1.1 já existe
+      stat:
+        path: "{{ playbook_dir }}/libssl1.1_1.1.1f-1ubuntu2_amd64.deb"
+      register: libssl_file
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Baixar libssl1.1
+      command: wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Instalar libssl1.1
+      command: sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Instalar o MongoDB Server
+      apt:
+        name: mongodb-org
+        state: present
+      become: yes
+
+    - name: Baixar MongoDB Compass
+      get_url:
+        url: https://downloads.mongodb.com/compass/mongodb-compass_1.28.4_amd64.deb
+        dest: "{{ playbook_dir }}/mongodb-compass_1.28.4_amd64.deb"
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Instalar MongoDB Compass via Flatpak
+      become: yes
+      ansible.builtin.command: flatpak install flathub com.mongodb.Compass
+
+    - name: Atualizar lista de pacotes (Ubuntu)
+      apt:
+        update_cache: yes
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Instalar MySQL Server (Ubuntu)
+      apt:
+        name: mysql-server
+        state: present
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Adicionar chave GPG do repositório do DBeaver
+      apt_key:
+        url: https://dbeaver.io/debs/dbeaver.gpg.key
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Adicionar repositório do DBeaver (Ubuntu)
+      apt_repository:
+        repo: deb https://dbeaver.io/debs/dbeaver-ce / 
+        state: present
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Atualizar lista de pacotes (Ubuntu)
+      apt:
+        update_cache: yes
+      when: ansible_distribution == 'Ubuntu'
+
+    - name: Instalar DBeaver (Ubuntu)
+      apt:
+        name: dbeaver-ce
+        state: present
+      when: ansible_distribution == 'Ubuntu'
+
+
